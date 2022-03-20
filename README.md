@@ -7,6 +7,6 @@
  *  https://github.com/MikeMcl/big.js/LICENCE.md
  */
 
-/* Credits to Michael Mclaughlin, I did this because I did not wanted fail or reinvent the wheel,
+/* Credits to Michael Mclaughlin, I did this because I did not wanted to fail or reinvent the wheel,
  * I did spend my time on this.
  */
