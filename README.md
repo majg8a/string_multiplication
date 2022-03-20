@@ -9,4 +9,5 @@
 
 /* Credits to Michael Mclaughlin, I did this because I did not wanted to fail or reinvent the wheel,
  * I did spend my time on this.
+ * the answer is index6.js
  */
