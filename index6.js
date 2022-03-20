@@ -1,10 +1,3 @@
-const fs = require("fs");
-
-const stream = require("stream");
-const http = require("http");
-const https = require("https");
-// use Node.js Writable, otherwise load polyfill
-let Writable = stream.Writable || require("readable-stream").Writable;
 const strBig = `
 /*
  *  big.js v6.0.0
@@ -139,9 +132,7 @@ function _Big_() {
 function parse(x, n) {
   var e, i, nl;
 
-  if (!NUMERIC.test(n)) {
-    throw Error(INVALID + 'number');
-  }
+  
 
   // Determine sign.
   x.s = n.charAt(0) == '-' ? (n = n.slice(1), -1) : 1;
@@ -1008,153 +999,35 @@ module.exports = new _Big_();
 
 
 `;
-/* Writable memory stream */
-class WMStrm extends Writable {
-  memStore = Buffer.from("");
-  constructor(options) {
-    super();
-    if (!(this instanceof WMStrm)) {
-      return new WMStrm(options);
-    }
-    Writable.call(this, options); // init super
-    WMStrm.prototype._write = function (chunk, enc, cb) {
-      const buffer = Buffer.isBuffer(chunk)
-        ? chunk // already is Buffer use it
-        : Buffer.isBuffer(chunk, enc); // string, convert
 
-      // concat to the buffer already there
-      this.memStore = Buffer.concat([this.memStore, buffer]);
-      cb();
-    };
-    new Writable().end();
-  }
+function getCleanNumber(x = "0") {
+  let sign = x[0] === "-" ? "-" : "";
+  const xSplit = x.split(".");
+  let xInt = xSplit[0].replace(/0/g, " ").concat(".");
+  xInt = xInt[0] === "-" ? xInt.slice(1) : xInt;
+  xInt = xInt.trim().replace(/ /g, "0").replace(".", "");
+  xInt = xInt.length === 0 ? "" : xInt;
+
+  let xDec = xSplit[1];
+
+  xDec = "."
+    .concat(xSplit[1])
+    .replace(/0/g, " ")
+    .trim()
+    .replace(/ /g, "0")
+    .replace(/\./g, "");
+
+  xDec = xDec === "" || xDec === "undefined" ? "" : "." + xDec;
+  sign = xInt === "" ? "0" : sign;
+
+  return sign + xInt + xDec;
 }
 
-async function download(url, filePath) {
-  const proto = !url.charAt(4).localeCompare("s") ? https : http;
-  return new Promise((resolve, reject) => {
-    const file = new WMStrm();
-    const request = proto.get(url, (response) => {
-      if (response.statusCode !== 200) {
-        reject(new Error(`Failed to get '${url}' (${response.statusCode})`));
-        return;
-      }
-      response.pipe(file);
-    });
-
-    file.on("finish", () => resolve(file));
-    request.on("error", (err) => {
-      fs.unlink(filePath, () => reject(err));
-    });
-    file.on("error", (err) => {
-      fs.unlink(filePath, () => reject(err));
-    });
-  });
-}
-
-// Trying our stream out
-download("https://unpkg.com/big.js@6.0.0/big.mjs")
-  .then((res) => {
-    const Big = eval(
-      res.memStore
-        .toString()
-        .replace("export var Big = _Big_();", "module.exports = new _Big_();")
-        .replace("export default Big;", "")
-    );
-
-    console.log(
-      Big(
-        "-000000000006609384489637528847111902877988879251990047900714057985145037"
-      )
-        .times(
-          "-2739720780992942410992390008913829925293817433341522914.55748949182446456300417957141316443171804666458201705125"
-        )
-        .toFixed(60)
-    );
-
-    const a = res.memStore
-      .toString()
-      .replace("export var Big = _Big_();", "module.exports = new _Big_();")
-      .replace("export default Big;", "");
-
-    const codedBig = stringToUTF8Bytes(a, "UTF-8LE");
-    const decodedbig = new TextDecoder().decode(codedBig);
-    const newBig = eval(decodedbig);
-    console.log(
-        newBig(
-          "-000000000006609384489637528847111902877988879251990047900714057985145037"
-        )
-          .times(
-            "-2739720780992942410992390008913829925293817433341522914.55748949182446456300417957141316443171804666458201705125"
-          )
-          .toFixed(60)
-      );
-
-    //   const newBig2 = eval(strBig);
-    //   console.log(
-    //     newBig2(
-    //         "-000000000006609384489637528847111902877988879251990047900714057985145037"
-    //       )
-    //         .times(
-    //           "-2739720780992942410992390008913829925293817433341522914.55748949182446456300417957141316443171804666458201705125"
-    //         )
-    //         .toFixed(60)
-    //     );
-    // fs.writeFile("./coded.txt", codedBig+"", function (err) {
-    //   if (err) return console.log(err);
-    //   console.log("Hello World > helloworld.txt");
-    // });
-
-    // fs.writeFile("./decoded.txt", decodedbig, function (err) {
-    //   if (err) return console.log(err);
-    //   console.log("Hello World > helloworld.txt");
-    // });
-  })
-  .catch((e) => {
-    console.log(e);
-  });
-
-function bytesToHex(bytes) {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
-  );
-}
-
-// You almost certainly want UTF-8, which is
-// now natively supported:
-function stringToUTF8Bytes(string) {
-  return new TextEncoder().encode(string);
-}
-
-// But you might want UTF-16 for some reason.
-// .charCodeAt(index) will return the underlying
-// UTF-16 code-units (not code-points!), so you
-// just need to format them in whichever endian order you want.
-function stringToUTF16Bytes(string, littleEndian) {
-  const bytes = new Uint8Array(string.length * 2);
-  // Using DataView is the only way to get a specific
-  // endianness.
-  const view = new DataView(bytes.buffer);
-  for (let i = 0; i != string.length; i++) {
-    view.setUint16(i, string.charCodeAt(i), littleEndian);
-  }
-  return bytes.toString();
-}
-
-// And you might want UTF-32 in even weirder cases.
-// Fortunately, iterating a string gives the code
-// points, which are identical to the UTF-32 encoding,
-// though you still have the endianess issue.
-function stringToUTF32Bytes(string, littleEndian) {
-  const codepoints = Array.from(string, (c) => c.codePointAt(0));
-  const bytes = new Uint8Array(codepoints.length * 4);
-  // Using DataView is the only way to get a specific
-  // endianness.
-  const view = new DataView(bytes.buffer);
-  for (let i = 0; i != codepoints.length; i++) {
-    view.setUint32(i, codepoints[i], littleEndian);
-  }
-  return bytes;
+function getDecLength(x) {
+  const xSplit = x.split(".");
+  const dec = xSplit[1];
+  const decLength = dec !== "undefined" && x !== xSplit[0] ? dec.length : 0;
+  return decLength;
 }
 
 function hexToBytes(hex) {
@@ -1163,4 +1036,18 @@ function hexToBytes(hex) {
     bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
   }
   return bytes;
+}
+
+const Big = eval(strBig);
+function multiply(n, o) {
+  const newN = getCleanNumber(n);
+  const nDecL = getDecLength(newN);
+
+  const newO = getCleanNumber(o);
+  const oDecL = getDecLength(newO);
+  const res = Big(n)
+    .times(o)
+    .toFixed(nDecL + oDecL);
+
+  return getCleanNumber(res);
 }

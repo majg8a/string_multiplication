@@ -169,3 +169,77 @@ function round(x, sd, rm, more) {
 
   return x;
 }
+
+function stringify(x, doExponential, isNonzero) {
+  var e = x.e,
+    s = x.c.join(""),
+    n = s.length;
+
+  // Exponential notation?
+  if (doExponential) {
+    s =
+      s.charAt(0) + (n > 1 ? "." + s.slice(1) : "") + (e < 0 ? "e" : "e+") + e;
+
+    // Normal notation.
+  } else if (e < 0) {
+    for (; ++e; ) s = "0" + s;
+    s = "0." + s;
+  } else if (e > 0) {
+    if (++e > n) {
+      for (e -= n; e--; ) s += "0";
+    } else if (e < n) {
+      s = s.slice(0, e) + "." + s.slice(e);
+    }
+  } else if (n > 1) {
+    s = s.charAt(0) + "." + s.slice(1);
+  }
+
+  return x.s < 0 && isNonzero ? "-" + s : s;
+}
+
+function parse(x, n) {
+  var e, i, nl;
+
+  if (!NUMERIC.test(n)) {
+    throw Error(INVALID + "number");
+  }
+
+  // Determine sign.
+  x.s = n.charAt(0) == "-" ? ((n = n.slice(1)), -1) : 1;
+
+  // Decimal point?
+  if ((e = n.indexOf(".")) > -1) n = n.replace(".", "");
+
+  // Exponential form?
+  if ((i = n.search(/e/i)) > 0) {
+    // Determine exponent.
+    if (e < 0) e = i;
+    e += +n.slice(i + 1);
+    n = n.substring(0, i);
+  } else if (e < 0) {
+    // Integer.
+    e = n.length;
+  }
+
+  nl = n.length;
+
+  // Determine leading zeros.
+  for (i = 0; i < nl && n.charAt(i) == "0"; ) ++i;
+
+  if (i == nl) {
+    // Zero.
+    x.c = [(x.e = 0)];
+  } else {
+    // Determine trailing zeros.
+    for (; nl > 0 && n.charAt(--nl) == "0"; );
+    x.e = e - i - 1;
+    x.c = [];
+
+    // Convert string to array of digits without leading/trailing zeros.
+    for (e = 0; i <= nl; ) x.c[e++] = +n.charAt(i++);
+  }
+
+  return x;
+}
+
+module.exports = new _Big_();
